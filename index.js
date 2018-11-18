@@ -1,3 +1,5 @@
+var rpio = require('rpio');
+var onoff = require('onoff');
 var Express = require('express');
 var Handlebars = require('handlebars');
 var bodyParser = require('body-parser');
@@ -11,6 +13,14 @@ var wait = require('./wait.js');
 // we've got to scan before we enter AP mode and save the results
 var preliminaryScanResults;
 
+var onoffGpio = onoff.Gpio;
+var greenLed = new onoffGpio(8, 'out');
+var yellowLed = new onoffGpio(10, 'out');
+
+// System is booted
+// Turn on Green LED
+enableLED(greenLed,'on');
+
 // Wait until we have a working wifi connection. Retry every 3 seconds up
 // to 10 times. If we are connected, then start just start the next stage
 // and exit. But if we never get a wifi connection, go into AP mode.
@@ -18,13 +28,36 @@ waitForWifi(20, 3000)
   .then(runNextStageAndExit)
   .catch(() => { startServer(); startAP() });
 
+  
+// Enable or Disable Green LED
+// Set interval to blink  
+function enableLED(led, state, i=null) {
+	if (state == 'on'){
+		if (interval == null){
+			led.write(1);
+		} else {
+			interval = setInterval(function () { //#C
+			  var value = (led.readSync() + 1) % 2; //#D
+			  led.write(value, function() { //#E
+				console.log("Changed LED state to: " + value);
+			  });
+			}, i);
+		}
+	} else {
+		led.write(1);
+	}
+}
+  
+  
+  
 // Return a promise, then check every interval ms for a wifi connection.
 // Resolve the promise when we're connected. Or, if we aren't connected
 // after maxAttempts attempts, then reject the promise
 function waitForWifi(maxAttempts, interval) {
   return new Promise(function(resolve, reject) {
     var attempts = 0;
-    check();
+    
+	check();
 
     function check() {
       attempts++;
