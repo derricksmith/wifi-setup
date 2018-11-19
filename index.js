@@ -12,6 +12,7 @@ var wait = require('./wait.js');
 // The Edison device can't scan for wifi networks while in AP mode, so
 // we've got to scan before we enter AP mode and save the results
 var preliminaryScanResults;
+var interval;
 
 var onoffGpio = onoff.Gpio;
 var greenLed = new onoffGpio(8, 'out');
@@ -36,6 +37,7 @@ function enableLED(led, state, i=null) {
 		if (interval == null){
 			led.write(1);
 		} else {
+			clearInterval(interval);
 			interval = setInterval(function () { //#C
 			  var value = (led.readSync() + 1) % 2; //#D
 			  led.write(value, function() { //#E
@@ -44,7 +46,7 @@ function enableLED(led, state, i=null) {
 			}, i);
 		}
 	} else {
-		led.write(1);
+		led.write(0);
 	}
 }
   
@@ -56,7 +58,7 @@ function enableLED(led, state, i=null) {
 function waitForWifi(maxAttempts, interval) {
   return new Promise(function(resolve, reject) {
     var attempts = 0;
-    
+    enableLED(yellowLed,'on',500);
 	check();
 
     function check() {
