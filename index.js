@@ -1,4 +1,4 @@
-var rpio = require('rpio');
+//var rpio = require('rpio');
 var onoff = require('onoff');
 var Express = require('express');
 var Handlebars = require('handlebars');
@@ -12,15 +12,18 @@ var wait = require('./wait.js');
 // The Edison device can't scan for wifi networks while in AP mode, so
 // we've got to scan before we enter AP mode and save the results
 var preliminaryScanResults;
-var interval;
 
 var onoffGpio = onoff.Gpio;
-var greenLed = new onoffGpio(8, 'out');
-var yellowLed = new onoffGpio(10, 'out');
+var greenLed = new onoffGpio(14, 'out');
+var yellowLed = new onoffGpio(15, 'out');
 
 // System is booted
 // Turn on Green LED
-enableLED(greenLed,'on');
+greenLed.write(1);
+clearInterval(yellowInterval);
+yellowLed.write(0);
+console.log("Starting Up");
+
 
 // Wait until we have a working wifi connection. Retry every 3 seconds up
 // to 10 times. If we are connected, then start just start the next stage
@@ -28,27 +31,6 @@ enableLED(greenLed,'on');
 waitForWifi(20, 3000)
   .then(runNextStageAndExit)
   .catch(() => { startServer(); startAP() });
-
-  
-// Enable or Disable Green LED
-// Set interval to blink  
-function enableLED(led, state, i=null) {
-	if (state == 'on'){
-		if (interval == null){
-			led.write(1);
-		} else {
-			clearInterval(interval);
-			interval = setInterval(function () { //#C
-			  var value = (led.readSync() + 1) % 2; //#D
-			  led.write(value, function() { //#E
-				console.log("Changed LED state to: " + value);
-			  });
-			}, i);
-		}
-	} else {
-		led.write(0);
-	}
-}
   
   
   
@@ -58,7 +40,13 @@ function enableLED(led, state, i=null) {
 function waitForWifi(maxAttempts, interval) {
   return new Promise(function(resolve, reject) {
     var attempts = 0;
-    enableLED(yellowLed,'on',500);
+	var yellowInterval = setInterval(function () { //#C
+	  var value = (yellowLed.readSync() + 1) % 2; //#D
+	  yellowLed.write(value, function() { //#E
+		console.log("Changed Yellow state to: " + value);
+	  });
+	}, 1000);
+	
 	check();
 
     function check() {
@@ -68,6 +56,9 @@ function waitForWifi(maxAttempts, interval) {
         .then(status => {
           console.log(status);
           if (status === 'COMPLETED') {
+			// Turn off Yellow LED
+			clearInterval(yellowInterval);
+			yellowLed.write(1);
             console.log('Wifi connection found');
             resolve();
           }
@@ -95,8 +86,17 @@ function waitForWifi(maxAttempts, interval) {
 }
 
 function startAP() {
-  console.log("startAP");
+	console.log("startAP");
+	clearInterval(yellowInterval);
+	var yellowInterval = setInterval(function () { //#C
+	  var value = (yellowLed.readSync() + 1) % 2; //#D
+	  yellowLed.write(value, function() { //#E
+		console.log("Changed Yellow state to: " + value);
+	  });
+	}, 500);
 
+  
+  
   // Scan for wifi networks now because we can't always scan once
   // the AP is being broadcast
   wifi.scan(10)   // retry up to 10 times
@@ -187,7 +187,7 @@ function runNextStageAndExit() {
       .then(() => process.exit());
   }
   else {
-    process.exit();
+    //process.exit();
   }
 }
 
